@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>工作流后台</title>
+  <link rel="stylesheet" href="共享样式/backend.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-title">量化投放系统后台</div>
+      </div>
+      <a class="nav-link active" href="工作流管理.html" target="mainFrame">工作流管理</a>
+      <a class="nav-link" href="配置管理.html" target="mainFrame">工作流类型管理</a>
+      <div class="sidebar-user">
+        <span class="user-name">唐大山</span>
+        <button class="btn text danger" onclick="location.href='login.html'">登出</button>
+      </div>
+    </aside>
+    <main class="content">
+      <iframe name="mainFrame" src="工作流管理.html" title="工作流后台内容" style="width:100%;min-height:720px;border:0;border-radius:8px;background:#fff"></iframe>
+    </main>
+  </div>
+  <script>
+    document.querySelectorAll('.nav-link').forEach(function (link) {
+      link.addEventListener('click', function () {
+        document.querySelectorAll('.nav-link').forEach(function (item) { item.classList.remove('active') })
+        link.classList.add('active')
+      })
+    })
+  </script>
+</body>
+</html>
