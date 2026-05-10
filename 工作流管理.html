@@ -32,6 +32,7 @@
     <table class="table">
       <thead>
         <tr>
+          <th>封面</th>
           <th>名称</th>
           <th>描述</th>
           <th>节点类型</th>
@@ -72,6 +73,18 @@
             <textarea id="nodeDesc" class="textarea node-desc" maxlength="50" placeholder="不超过50个字"></textarea>
           </label>
           <div class="field full">
+            <span class="label">节点封面图</span>
+            <div class="cover-uploader">
+              <div id="coverPreview" class="cover-preview">封面</div>
+              <div class="cover-meta">
+                <input id="coverImageInput" type="file" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="handleCoverFile(this)">
+                <button class="btn" onclick="document.getElementById('coverImageInput').click()">上传封面</button>
+                <div id="coverText" class="hint">支持 PNG、JPG、WEBP，图片比例必须为 1:1</div>
+                <div id="coverError" class="hint" style="display:none;color:var(--ant-error-6)"></div>
+              </div>
+            </div>
+          </div>
+          <div class="field full">
             <span class="label">ComfyUI JSON</span>
             <div class="upload-box">
               <input id="jsonFileInput" type="file" accept=".json,application/json" style="display:none" onchange="handleJsonFile(this)">
@@ -106,10 +119,6 @@
                 <label class="field">
                   <span class="label">输出字段</span>
                   <select id="outputField" class="select" onchange="refreshOutputType()"></select>
-                </label>
-                <label class="field">
-                  <span class="label">输出字段类型</span>
-                  <input id="outputRawType" class="input" readonly>
                 </label>
                 <label class="field">
                   <span class="label">输出类型</span>
@@ -155,13 +164,14 @@
       { id: '31', title: '最终图片', type: 'SaveImage', inputs: [{ name: 'image', type: 'IMAGE' }], outputs: [{ name: 'images', type: 'IMAGE[]' }] }
     ]
     var nodes = [
-      { id: 1, name: '爆款扩写', desc: '基于爆款素材生成多组提示词', type: '文案处理', status: '已上线', creator: '张强', updated: '2026-05-10 10:24', inputs: [{ nodeId: '18', field: 'text', rawType: 'STRING', productType: '文本', label: '爆款文案', desc: '输入爆款原文' }], output: { nodeId: '18', field: 'text', rawType: 'STRING', productType: '文本', label: '文案结果' } },
-      { id: 2, name: '图生短片', desc: '输入图片生成高质量短视频素材', type: '视频生成', status: '已下线', creator: '李娜', updated: '2026-05-09 18:12', inputs: [{ nodeId: '12', field: 'video', rawType: 'VIDEO', productType: '视频', label: '参考视频', desc: '主参考视频' }, { nodeId: '24', field: 'prompt', rawType: 'STRING', productType: '文本', label: '镜头描述', desc: '生成视频的文字描述' }], output: { nodeId: '24', field: 'result_video', rawType: 'VIDEO', productType: '视频', label: '成片视频' } },
-      { id: 3, name: '素材合成', desc: '组合多张素材并输出商品主图', type: '素材合成', status: '已上线', creator: '王磊', updated: '2026-05-08 15:40', inputs: [{ nodeId: '31', field: 'image', rawType: 'IMAGE', productType: '图片', label: '商品图', desc: '待合成商品图' }], output: { nodeId: '31', field: 'images', rawType: 'IMAGE[]', productType: '图片', label: '商品主图' } }
+      { id: 1, name: '爆款扩写', desc: '基于爆款素材生成多组提示词', type: '文案处理', cover: '', status: '已上线', creator: '张强', updated: '2026-05-10 10:24', inputs: [{ nodeId: '18', field: 'text', rawType: 'STRING', productType: '文本', label: '爆款文案', desc: '输入爆款原文' }], output: { nodeId: '18', field: 'text', rawType: 'STRING', productType: '文本', label: '文案结果' } },
+      { id: 2, name: '图生短片', desc: '输入图片生成高质量短视频素材', type: '视频生成', cover: '', status: '已下线', creator: '李娜', updated: '2026-05-09 18:12', inputs: [{ nodeId: '12', field: 'video', rawType: 'VIDEO', productType: '视频', label: '参考视频', desc: '主参考视频' }, { nodeId: '24', field: 'prompt', rawType: 'STRING', productType: '文本', label: '镜头描述', desc: '生成视频的文字描述' }], output: { nodeId: '24', field: 'result_video', rawType: 'VIDEO', productType: '视频', label: '成片视频' } },
+      { id: 3, name: '素材合成', desc: '组合多张素材并输出商品主图', type: '素材合成', cover: '', status: '已上线', creator: '王磊', updated: '2026-05-08 15:40', inputs: [{ nodeId: '31', field: 'image', rawType: 'IMAGE', productType: '图片', label: '商品图', desc: '待合成商品图' }], output: { nodeId: '31', field: 'images', rawType: 'IMAGE[]', productType: '图片', label: '商品主图' } }
     ]
     var editingId = null
     var confirmAction = null
     var uploadParsed = false
+    var currentCover = ''
 
     function renderTable() {
       var keyword = document.getElementById('keyword').value.trim()
@@ -175,6 +185,7 @@
         var stateClass = node.status === '已上线' ? 'online' : 'offline'
         var toggle = node.status === '已上线' ? '下线' : '上线'
         return '<tr>' +
+          '<td>' + coverHtml(node) + '</td>' +
           '<td><strong>' + node.name + '</strong></td>' +
           '<td>' + node.desc + '</td>' +
           '<td>' + node.type + '</td>' +
@@ -185,17 +196,25 @@
           '<td class="table-actions"><button class="btn text" onclick="openNodeModal(&quot;edit&quot;,' + node.id + ')">编辑</button><button class="btn text" onclick="toggleNode(' + node.id + ')">' + toggle + '</button><button class="btn text danger" onclick="confirmDelete(' + node.id + ')">删除</button></td>' +
         '</tr>'
       }).join('')
-      document.getElementById('nodeRows').innerHTML = rows || '<tr><td colspan="8" class="hint">暂无数据</td></tr>'
+      document.getElementById('nodeRows').innerHTML = rows || '<tr><td colspan="9" class="hint">暂无数据</td></tr>'
+    }
+
+    function coverHtml(node) {
+      if (node.cover) return '<img class="cover-thumb" src="' + node.cover + '" alt="' + node.name + '封面">'
+      return '<div class="cover-thumb cover-empty">' + node.name.slice(0, 1) + '</div>'
     }
 
     function openNodeModal(mode, id) {
       editingId = mode === 'edit' ? id : null
       document.getElementById('modalTitle').textContent = editingId ? '编辑节点' : '新建节点'
       clearFormError()
-      var node = nodes.find(function (item) { return item.id === id }) || { name: '', desc: '', type: '图片处理', inputs: [{ nodeId: '12', field: 'video', label: '参考视频', desc: '' }], output: { nodeId: '24', field: 'result_video', label: '成片视频' } }
+      var node = nodes.find(function (item) { return item.id === id }) || { name: '', desc: '', type: '图片处理', cover: '', inputs: [{ nodeId: '12', field: 'video', label: '参考视频', desc: '' }], output: { nodeId: '24', field: 'result_video', label: '成片视频' } }
       document.getElementById('nodeName').value = node.name
       document.getElementById('nodeDesc').value = node.desc
       document.getElementById('nodeType').value = node.type
+      currentCover = node.cover || ''
+      document.getElementById('coverImageInput').value = ''
+      renderCoverPreview()
       document.getElementById('uploadText').textContent = editingId ? '已解析：workflow.json' : '选择本地 ComfyUI 导出的 JSON 文件'
       setUploadError('')
       uploadParsed = !!editingId
@@ -288,7 +307,6 @@
       var nodeId = document.getElementById('outputNode').value
       var fieldName = document.getElementById('outputField').value
       var field = findField(nodeId, 'outputs', fieldName)
-      document.getElementById('outputRawType').value = field.type || ''
       document.getElementById('outputProductType').value = normalizeType(field.type)
     }
 
@@ -345,6 +363,58 @@
       setUploadError('JSON 解析失败：文件结构不符合 ComfyUI 工作流格式。')
     }
 
+    function handleCoverFile(input) {
+      var file = input.files && input.files[0]
+      if (!file) return
+      if (!/^image\/(png|jpeg|webp)$/.test(file.type)) {
+        currentCover = ''
+        renderCoverPreview('仅支持 PNG、JPG、WEBP 图片。')
+        input.value = ''
+        return
+      }
+      var reader = new FileReader()
+      reader.onload = function () {
+        var image = new Image()
+        image.onload = function () {
+          if (image.naturalWidth !== image.naturalHeight) {
+            currentCover = ''
+            renderCoverPreview('封面图必须为 1:1，请重新上传。')
+            input.value = ''
+            return
+          }
+          currentCover = reader.result
+          renderCoverPreview()
+        }
+        image.onerror = function () {
+          currentCover = ''
+          renderCoverPreview('图片读取失败，请重新上传。')
+          input.value = ''
+        }
+        image.src = reader.result
+      }
+      reader.onerror = function () {
+        currentCover = ''
+        renderCoverPreview('图片读取失败，请重新上传。')
+        input.value = ''
+      }
+      reader.readAsDataURL(file)
+    }
+
+    function renderCoverPreview(errorText) {
+      var preview = document.getElementById('coverPreview')
+      var text = document.getElementById('coverText')
+      var error = document.getElementById('coverError')
+      if (currentCover) {
+        preview.innerHTML = '<img src="' + currentCover + '" alt="节点封面预览">'
+        text.textContent = '已上传 1:1 封面图'
+      } else {
+        preview.textContent = '封面'
+        text.textContent = '支持 PNG、JPG、WEBP，图片比例必须为 1:1'
+      }
+      error.textContent = errorText || ''
+      error.style.display = errorText ? 'block' : 'none'
+    }
+
     function saveNode() {
       clearFormError()
       var name = document.getElementById('nodeName').value.trim()
@@ -377,9 +447,9 @@
       }
       if (editingId) {
         var node = nodes.find(function (item) { return item.id === editingId })
-        Object.assign(node, { name: name, desc: desc, type: type, output: output, inputs: inputs, updated: '2026-05-10 现在' })
+        Object.assign(node, { name: name, desc: desc, type: type, cover: currentCover, output: output, inputs: inputs, updated: '2026-05-10 现在' })
       } else {
-        nodes.unshift({ id: Date.now(), name: name, desc: desc, type: type, status: '已下线', creator: '当前用户', updated: '2026-05-10 现在', inputs: inputs, output: output })
+        nodes.unshift({ id: Date.now(), name: name, desc: desc, type: type, cover: currentCover, status: '已下线', creator: '当前用户', updated: '2026-05-10 现在', inputs: inputs, output: output })
       }
       closeNodeModal()
       renderTable()
